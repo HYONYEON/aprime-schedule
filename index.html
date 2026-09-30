@@ -70,7 +70,7 @@
   .setbtns .no.on{background:var(--no);color:#fff;border-color:var(--no)}
   .setbtns .maybe.on{background:var(--maybe);color:#fff;border-color:var(--maybe)}
   .setbtns .clr{color:var(--muted);font-weight:500}
-  .lists{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;font-size:13px}
+  .lists{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:13px}
   @media(max-width:720px){.lists{grid-template-columns:1fr 1fr}}
   .lists div b{display:block;font-size:12px;margin-bottom:4px}
   .notice{background:#FEF3C7;border:1px solid #FCD34D;color:#92400E;border-radius:8px;padding:10px 14px;font-size:13px;margin-top:16px;display:none}
@@ -97,15 +97,15 @@
     </div>
     <div class="guide">
       <div class="label">② 날짜를 누르고 상태를 고르세요</div>
-      <span class="k ok">가능</span><span class="k maybe">미정</span><span class="k no">불가</span><br>
-      달력 칸의 막대는 <b>가능 · 미정 · 불가</b> 인원 비율입니다.<br>
+      <span class="k ok">가능</span><span class="k maybe">미정</span><br>
+      달력 칸의 막대는 <b>가능 · 미정</b> 인원 비율입니다.<br>
       확정된 촬영일은 칸 안에 색 라벨로 표시됩니다.
     </div>
   </div>
 
   <div class="panel row">
     <div style="flex:1 1 300px">
-      <div class="label">집계 기준</div>
+      <div class="label">집계 기준 <span style="font-weight:500">· 촬영팀은 모든 콘텐츠에 포함</span></div>
       <div class="filter" id="filter"></div>
     </div>
     <div class="best">
@@ -181,7 +181,8 @@ async function save(date, status){
 
 const tagsOf = m => String(m.group||'').split('/').map(x=>x.trim()).filter(Boolean);
 const homeOf = m => { const t = tagsOf(m); return t[t.length-1] || '기타'; };
-function membersIn(group){ return DATA.members.filter(m => group==='전체' || tagsOf(m).includes(group)); }
+const CREW = '촬영팀'; // 촬영팀은 모든 콘텐츠 집계에 항상 포함
+function membersIn(group){ return DATA.members.filter(m => group==='전체' || tagsOf(m).includes(group) || tagsOf(m).includes(CREW)); }
 
 function statsFor(date){
   const names = new Set(membersIn(groupFilter).map(m=>m.name));
@@ -211,7 +212,7 @@ function render(){
   }</div>`).join('') || '<span class="c">멤버 불러오는 중...</span>';
 
   // 필터
-  $('filter').innerHTML = ['전체', ...allTags].map(g=>`<button class="chip ${g===groupFilter?'on':''}" data-group="${g}">${g}</button>`).join('');
+  $('filter').innerHTML = ['전체', ...allTags.filter(t=>t!==CREW)].map(g=>`<button class="chip ${g===groupFilter?'on':''}" data-group="${g}">${g}</button>`).join('');
 
   // 확정 구분 범례
   $('types').innerHTML = Object.entries(TYPE_COLORS).map(([k,c])=>`<span class="conf" style="background:${c};font-size:12px;padding:3px 8px">${k}</span>`).join('');
@@ -234,8 +235,8 @@ function render(){
       const confs = (conf[key]||[]).map(c=>`<span class="conf" style="background:${TYPE_COLORS[c.type]||'#475569'}" title="${c.memo||''}">${c.type}</span>`).join('');
       html += `<div class="${cls}" data-date="${key}">
         <span class="d">${d}</span>${HOLIDAYS[key]?`<span class="hname">${HOLIDAYS[key]}</span>`:''}${mine}${confs}
-        ${s['가능'].length||s['미정'].length||s['불가'].length ? `<span class="c">가능 <b>${s['가능'].length}</b>/${s.total}</span>`:''}
-        <div class="bar"><i class="o" style="width:${s['가능'].length/tot*100}%"></i><i class="m" style="width:${s['미정'].length/tot*100}%"></i><i class="n" style="width:${s['불가'].length/tot*100}%"></i></div>
+        ${s['가능'].length||s['미정'].length ? `<span class="c">가능 <b>${s['가능'].length}</b>/${s.total}</span>`:''}
+        <div class="bar"><i class="o" style="width:${s['가능'].length/tot*100}%"></i><i class="m" style="width:${s['미정'].length/tot*100}%"></i></div>
       </div>`;
     }
     html += `</div></section>`;
@@ -244,10 +245,10 @@ function render(){
 
   // 베스트 날짜
   const ranked = allDates.filter(k=>k>=todayStr).map(k=>({k, s:statsFor(k)})).filter(x=>x.s['가능'].length>0)
-    .sort((a,b)=> b.s['가능'].length-a.s['가능'].length || a.s['불가'].length-b.s['불가'].length || a.k.localeCompare(b.k)).slice(0,5);
+    .sort((a,b)=> b.s['가능'].length-a.s['가능'].length || b.s['미정'].length-a.s['미정'].length || a.k.localeCompare(b.k)).slice(0,5);
   $('best').innerHTML = ranked.length ? ranked.map(x=>{
     const dt=new Date(x.k+'T00:00:00');
-    return `<li><a href="#" data-jump="${x.k}" style="color:inherit">${dt.getMonth()+1}월 ${dt.getDate()}일 (${DOW[dt.getDay()]})</a> — <span class="cnt">가능 ${x.s['가능'].length}명</span> / ${x.s.total}명${x.s['불가'].length?` · 불가 ${x.s['불가'].length}`:''}</li>`;
+    return `<li><a href="#" data-jump="${x.k}" style="color:inherit">${dt.getMonth()+1}월 ${dt.getDate()}일 (${DOW[dt.getDay()]})</a> — <span class="cnt">가능 ${x.s['가능'].length}명</span> / ${x.s.total}명${x.s['미정'].length?` · 미정 ${x.s['미정'].length}`:''}</li>`;
   }).join('') : '<li style="list-style:none;margin-left:-18px;color:var(--muted)">아직 응답이 없습니다</li>';
 
   renderDetail();
@@ -266,13 +267,12 @@ function renderDetail(){
       <button class="btn" id="closeDetail" style="margin-left:auto;background:#fff;color:var(--muted);border-color:var(--line)">닫기</button></h3>
     ${me ? `<div class="setbtns">
         <span class="c" style="align-self:center;margin-right:4px"><b style="color:var(--navy)">${me}</b> 님은</span>
-        ${['가능','미정','불가'].map(st=>`<button class="${ST_CLS[st]} ${mine===st?'on':''}" data-set="${st}">${st}</button>`).join('')}
+        ${['가능','미정'].map(st=>`<button class="${ST_CLS[st]} ${mine===st?'on':''}" data-set="${st}">${st}</button>`).join('')}
         ${mine?`<button class="clr" data-set="">선택 취소</button>`:''}
       </div>` : `<div class="c" style="margin-bottom:10px">위에서 <b style="color:var(--orange-d)">내 이름</b>을 먼저 고르면 이 날짜에 표시할 수 있어요.</div>`}
     <div class="lists">
       <div><b style="color:var(--ok)">가능 ${s['가능'].length}</b>${s['가능'].join(', ')||'-'}</div>
       <div><b style="color:var(--maybe)">미정 ${s['미정'].length}</b>${s['미정'].join(', ')||'-'}</div>
-      <div><b style="color:var(--no)">불가 ${s['불가'].length}</b>${s['불가'].join(', ')||'-'}</div>
       <div><b style="color:var(--muted)">미응답 ${s['미응답'].length}</b>${s['미응답'].join(', ')||'-'}</div>
     </div>`;
 }
