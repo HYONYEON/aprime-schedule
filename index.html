@@ -72,9 +72,20 @@
   .setbtns .no.on{background:var(--no);color:#fff;border-color:var(--no)}
   .setbtns .maybe.on{background:var(--maybe);color:#fff;border-color:var(--maybe)}
   .setbtns .clr{color:var(--muted);font-weight:500}
+  .setbtns button:disabled{opacity:.4;cursor:default}
   .lists{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:13px}
   @media(max-width:720px){.lists{grid-template-columns:1fr 1fr}}
   .lists div b{display:block;font-size:12px;margin-bottom:4px}
+  .modebtn{margin-top:12px;border:2px solid var(--orange);background:#fff;color:var(--orange-d);border-radius:10px;padding:9px 14px;font-size:14px;font-weight:700;cursor:pointer}
+  .modebtn.on{background:var(--orange);color:#fff}
+  .modehint{display:block;font-size:12px;color:var(--muted);margin-top:6px}
+  .cell.pick{background:#FFEDD5;outline:2px solid var(--orange);outline-offset:-2px;z-index:1}
+  .cell.pick .d::after{content:' ✓';color:var(--orange-d)}
+  .multi .dow div{cursor:pointer} .multi .dow div:hover{background:#FEF3C7}
+  .month h2{display:flex;align-items:center;gap:6px}
+  .mpick{margin-left:auto;border:1px solid #475569;background:transparent;color:#E2E8F0;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer}
+  .mpick+.mpick{margin-left:0}
+  .mpick:hover{border-color:var(--orange);color:#fff}
   .notice{background:#FEF3C7;border:1px solid #FCD34D;color:#92400E;border-radius:8px;padding:10px 14px;font-size:13px;margin-top:16px;display:none}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
   .toast.show{opacity:1}
@@ -102,6 +113,7 @@
       <span class="k ok">가능</span><span class="k maybe">미정</span><br>
       달력 칸의 막대는 <b>가능 · 미정</b> 인원 비율입니다.<br>
       확정된 촬영일은 칸 안에 색 라벨로 표시됩니다.
+      <div id="modeBox"></div>
     </div>
   </div>
 
@@ -141,6 +153,7 @@ const DOW = ['일','월','화','수','목','금','토'];
 
 let DATA = {config:{}, members:[], availability:[], confirmed:[]};
 let me = null, selDate = null, groupFilter = '전체';
+let multi = false; const picked = new Set();
 try { me = localStorage.getItem('aprime_me'); } catch(e){}
 
 const $ = id => document.getElementById(id);
@@ -148,7 +161,7 @@ const pad = n => String(n).padStart(2,'0');
 const ymd = (y,m,d) => `${y}-${pad(m)}-${pad(d)}`;
 const todayStr = (()=>{const t=new Date();return ymd(t.getFullYear(),t.getMonth()+1,t.getDate());})();
 
-function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1800); }
+function toast(msg, ms){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'), ms||1800); }
 function notice(msg){ const n=$('notice'); n.style.display=msg?'block':'none'; n.textContent=msg||''; }
 
 async function load(silent){
@@ -179,6 +192,47 @@ async function save(date, status){
     toast('저장 실패 — 다시 시도해주세요');
     load(true);
   }
+}
+
+function applyLocal(date, status){
+  DATA.availability = DATA.availability.filter(a => !(a.date===date && a.name===me));
+  if(status) DATA.availability.push({date, name:me, status});
+}
+const postJSON = body => fetch(API, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(body)}).then(r=>r.json());
+
+async function saveMany(dates, status){
+  if(!me){ toast('먼저 내 이름을 골라주세요'); return; }
+  if(!dates.length){ toast('먼저 날짜를 골라주세요'); return; }
+  dates = [...dates].sort();
+  dates.forEach(d => applyLocal(d, status));
+  picked.clear(); render();
+  const label = status ? `${dates.length}일 ${status}` : `${dates.length}일 기록 삭제`;
+  toast(`${label} 저장 중...`, 60000);
+  try{
+    // 한 번에 저장 (연결 코드가 새 버전일 때)
+    const j = await postJSON({name:me, items: dates.map(date=>({date, status}))});
+    if(j.ok){ toast(`${label} 저장됨`); return; }
+  }catch(_){}
+  // 이전 버전 연결 코드: 한 날짜씩 나눠서 저장
+  let done = 0, fail = 0; const queue = [...dates];
+  const worker = async () => { while(queue.length){ const date = queue.shift();
+    try{ const j = await postJSON({date, name:me, status}); if(!j.ok) fail++; }catch(_){ fail++; }
+    done++; toast(`${label} 저장 중... ${done}/${dates.length}`, 60000); } };
+  await Promise.all([worker(), worker(), worker()]);
+  if(fail){ toast(`${fail}일 저장 실패 — 다시 시도해주세요`, 3000); load(true); }
+  else toast(`${label} 저장됨`);
+}
+
+function futureDaysOfMonth(ym, filter){
+  const [y,m] = ym.split('-').map(Number), n = new Date(y, m, 0).getDate(), out=[];
+  for(let d=1; d<=n; d++){ const k=ymd(y,m,d), w=new Date(y,m-1,d).getDay(); if(k>=todayStr && filter(w,k)) out.push(k); }
+  return out;
+}
+function togglePick(keys){
+  if(!keys.length){ toast('선택할 수 있는 날짜가 없어요'); return; }
+  const allOn = keys.every(k=>picked.has(k));
+  keys.forEach(k => allOn ? picked.delete(k) : picked.add(k));
+  render();
 }
 
 const tagsOf = m => String(m.group||'').split('/').map(x=>x.trim()).filter(Boolean);
@@ -219,6 +273,11 @@ function render(){
   // 확정 구분 범례
   $('types').innerHTML = Object.entries(TYPE_COLORS).map(([k,c])=>`<span class="conf" style="background:${c};font-size:12px;padding:3px 8px">${k}</span>`).join('');
 
+  // 여러 날 선택 모드
+  $('modeBox').innerHTML = `<button class="modebtn ${multi?'on':''}" id="multiToggle">${multi?'✓ 여러 날 선택 중 — 끝내기':'여러 날 한 번에 선택하기'}</button>
+    ${multi?'<span class="modehint">날짜를 여러 개 누르거나, <b>요일 이름</b>을 누르면 그 달의 해당 요일 전체가 선택돼요.</span>':''}`;
+  $('months').classList.toggle('multi', multi);
+
   // 달력
   const conf = {}; DATA.confirmed.forEach(c => (conf[c.date] = conf[c.date]||[]).push(c));
   const mineMap = {}; DATA.availability.forEach(a => { if(a.name===me) mineMap[a.date]=a.status; });
@@ -227,12 +286,13 @@ function render(){
   for(let i=0;i<months;i++){
     const dt = new Date(sy, sm-1+i, 1), y=dt.getFullYear(), m=dt.getMonth()+1;
     const first = dt.getDay(), days = new Date(y, m, 0).getDate();
-    html += `<section class="month"><h2>${y}년 ${m}월</h2><div class="dow">${DOW.map(d=>`<div>${d}</div>`).join('')}</div><div class="grid">`;
+    const ymk = `${y}-${pad(m)}`;
+    html += `<section class="month"><h2>${y}년 ${m}월${multi?`<button class="mpick" data-mpick="weekday" data-ym="${ymk}">평일 전체</button><button class="mpick" data-mpick="all" data-ym="${ymk}">이 달 전체</button>`:''}</h2><div class="dow">${DOW.map((d,wi)=>`<div data-dow="${wi}" data-ym="${ymk}">${d}</div>`).join('')}</div><div class="grid">`;
     for(let e=0;e<first;e++) html += `<div class="cell empty"></div>`;
     for(let d=1; d<=days; d++){
       const key = ymd(y,m,d), w = (first+d-1)%7; allDates.push(key);
       const s = statsFor(key), tot = s.total||1;
-      const cls = ['cell', w===0?'sun':'', w===6?'sat':'', HOLIDAYS[key]?'hol':'', key<todayStr?'past':'', key===selDate?'sel':''].join(' ');
+      const cls = ['cell', w===0?'sun':'', w===6?'sat':'', HOLIDAYS[key]?'hol':'', key<todayStr?'past':'', (!multi && key===selDate)?'sel':'', (multi && picked.has(key))?'pick':''].join(' ');
       const mine = mineMap[key] ? `<span class="mine ${ST_CLS[mineMap[key]]}">${mineMap[key]}</span>` : '';
       const confs = (conf[key]||[]).map(c=>`<span class="conf" style="background:${TYPE_COLORS[c.type]||'#475569'}" title="${c.memo||''}">${c.type}</span>`).join('');
       html += `<div class="${cls}" data-date="${key}">
@@ -258,6 +318,22 @@ function render(){
 
 function renderDetail(){
   const box = $('detail');
+  if(multi){
+    box.style.display='block';
+    const list = [...picked].sort().map(k=>{const d=new Date(k+'T00:00:00');return `${d.getMonth()+1}/${d.getDate()}`;});
+    box.innerHTML = `
+      <h3>${picked.size ? `<span style="color:var(--orange-d)">${picked.size}일</span> 선택됨` : '달력에서 날짜를 골라주세요'}
+        <button class="btn" id="multiToggle" style="margin-left:auto;background:#fff;color:var(--muted);border-color:var(--line)">끝내기</button></h3>
+      ${list.length?`<div class="c" style="margin-bottom:10px;line-height:1.6">${list.join(' · ')}</div>`:''}
+      ${me ? `<div class="setbtns">
+          <span class="c" style="align-self:center;margin-right:4px"><b style="color:var(--navy)">${me}</b> 님은 선택한 날 모두</span>
+          <button class="ok" data-bulk="가능" ${picked.size?'':'disabled'}>가능</button>
+          <button class="maybe" data-bulk="미정" ${picked.size?'':'disabled'}>미정</button>
+          <button class="clr" data-bulk="" ${picked.size?'':'disabled'}>기록 지우기</button>
+          ${picked.size?`<button class="clr" data-clearpick="1">선택 해제</button>`:''}
+        </div>` : `<div class="c">위에서 <b style="color:var(--orange-d)">내 이름</b>을 먼저 골라주세요.</div>`}`;
+    return;
+  }
   if(!selDate){ box.style.display='none'; return; }
   const dt = new Date(selDate+'T00:00:00');
   const s = statsFor(selDate);
@@ -280,15 +356,24 @@ function renderDetail(){
 }
 
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-name],[data-group],[data-date],[data-set],[data-jump],#closeDetail,#reload');
+  const t = e.target.closest('[data-name],[data-group],[data-date],[data-set],[data-jump],[data-bulk],[data-clearpick],[data-mpick],[data-dow],#multiToggle,#closeDetail,#reload');
   if(!t) return;
   if(t.id==='reload'){ load(); return; }
+  if(t.id==='multiToggle'){ multi=!multi; picked.clear(); selDate=null; render(); if(multi && !me) toast('먼저 내 이름을 골라주세요'); return; }
+  if(t.dataset.bulk!==undefined){ saveMany([...picked], t.dataset.bulk); return; }
+  if(t.dataset.clearpick){ picked.clear(); render(); return; }
+  if(t.dataset.mpick){ togglePick(futureDaysOfMonth(t.dataset.ym, t.dataset.mpick==='weekday' ? (w=>w>0&&w<6) : (()=>true))); return; }
+  if(t.dataset.dow!==undefined){ if(!multi) return; const wi=+t.dataset.dow; togglePick(futureDaysOfMonth(t.dataset.ym, w=>w===wi)); return; }
   if(t.id==='closeDetail'){ selDate=null; render(); return; }
   if(t.dataset.name!==undefined){ me = (me===t.dataset.name)?null:t.dataset.name; try{ me?localStorage.setItem('aprime_me',me):localStorage.removeItem('aprime_me'); }catch(_){} render(); return; }
   if(t.dataset.group!==undefined){ groupFilter=t.dataset.group; render(); return; }
   if(t.dataset.set!==undefined){ save(selDate, t.dataset.set); return; }
   if(t.dataset.jump){ e.preventDefault(); selDate=t.dataset.jump; render(); document.querySelector(`[data-date="${selDate}"]`)?.scrollIntoView({behavior:'smooth',block:'center'}); return; }
-  if(t.dataset.date){ selDate = (selDate===t.dataset.date)?null:t.dataset.date; render(); }
+  if(t.dataset.date){
+    const k=t.dataset.date;
+    if(multi){ if(k<todayStr){ toast('지난 날짜는 고를 수 없어요'); return; } picked.has(k)?picked.delete(k):picked.add(k); render(); return; }
+    selDate = (selDate===k)?null:k; render();
+  }
 });
 
 load();
