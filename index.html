@@ -22,6 +22,7 @@
   .panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-top:16px}
   .row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
   .label{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px}
+  .label.step{font-size:16px;margin-bottom:10px}
   .who{flex:1 1 520px}
   .groups{display:flex;flex-direction:column;gap:8px}
   .grp{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -38,6 +39,7 @@
   .best{flex:1 1 340px}
   .best ol{margin:0;padding-left:18px;font-size:14px;line-height:1.8}
   .best .cnt{color:var(--ok);font-weight:700}
+  .best .cnt-m{color:var(--maybe);font-weight:700}
   .months{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px}
   @media(max-width:1100px){.months{grid-template-columns:1fr 1fr}}
   @media(max-width:720px){.months{grid-template-columns:1fr}}
@@ -92,11 +94,11 @@
 
   <div class="panel row">
     <div class="who">
-      <div class="label">① 내 이름을 먼저 고르세요</div>
+      <div class="label step">① 내 이름을 먼저 고르세요</div>
       <div class="groups" id="members"></div>
     </div>
     <div class="guide">
-      <div class="label">② 날짜를 누르고 상태를 고르세요</div>
+      <div class="label step">② 날짜를 누르고 상태를 고르세요</div>
       <span class="k ok">가능</span><span class="k maybe">미정</span><br>
       달력 칸의 막대는 <b>가능 · 미정</b> 인원 비율입니다.<br>
       확정된 촬영일은 칸 안에 색 라벨로 표시됩니다.
@@ -248,7 +250,7 @@ function render(){
     .sort((a,b)=> b.s['가능'].length-a.s['가능'].length || b.s['미정'].length-a.s['미정'].length || a.k.localeCompare(b.k)).slice(0,5);
   $('best').innerHTML = ranked.length ? ranked.map(x=>{
     const dt=new Date(x.k+'T00:00:00');
-    return `<li><a href="#" data-jump="${x.k}" style="color:inherit">${dt.getMonth()+1}월 ${dt.getDate()}일 (${DOW[dt.getDay()]})</a> — <span class="cnt">가능 ${x.s['가능'].length}명</span> / ${x.s.total}명${x.s['미정'].length?` · 미정 ${x.s['미정'].length}`:''}</li>`;
+    return `<li><a href="#" data-jump="${x.k}" style="color:inherit">${dt.getMonth()+1}월 ${dt.getDate()}일 (${DOW[dt.getDay()]})</a> — <span class="cnt">가능 ${x.s['가능'].length}명</span> / ${x.s.total}명${x.s['미정'].length?` · <span class="cnt-m">미정 ${x.s['미정'].length}명</span>`:''}</li>`;
   }).join('') : '<li style="list-style:none;margin-left:-18px;color:var(--muted)">아직 응답이 없습니다</li>';
 
   renderDetail();
