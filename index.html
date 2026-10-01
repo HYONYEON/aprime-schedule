@@ -90,6 +90,9 @@
   .confirm .cbtns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
   .confirm .cbtns button{border:2px solid var(--tc);background:#fff;color:var(--tc);border-radius:8px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer}
   .confirm .cbtns button.on{background:var(--tc);color:#fff}
+  .warn3{flex:1 1 260px}
+  .warnbox{background:var(--no-l);border:2px solid var(--no);color:#991B1B;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.6}
+  .warnbox b{color:var(--no)}
   .notice{background:#FEF3C7;border:1px solid #FCD34D;color:#92400E;border-radius:8px;padding:10px 14px;font-size:13px;margin-top:16px;display:none}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
   .toast.show{opacity:1}
@@ -118,6 +121,10 @@
       달력 칸의 막대는 <b>가능 · 미정</b> 인원 비율입니다.<br>
       확정된 촬영일은 칸 안에 색 라벨로 표시됩니다.
       <div id="modeBox"></div>
+    </div>
+    <div class="warn3">
+      <div class="label step" style="color:var(--no)">③ 촬영일 확정</div>
+      <div class="warnbox">⚠ 촬영일 확정 버튼은 <b>운영진 외에는 절대로 건드리시면 안 됩니다.</b></div>
     </div>
   </div>
 
