@@ -86,6 +86,10 @@
   .mpick{margin-left:auto;border:1px solid #475569;background:transparent;color:#E2E8F0;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer}
   .mpick+.mpick{margin-left:0}
   .mpick:hover{border-color:var(--orange);color:#fff}
+  .confirm{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+  .confirm .cbtns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .confirm .cbtns button{border:2px solid var(--tc);background:#fff;color:var(--tc);border-radius:8px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer}
+  .confirm .cbtns button.on{background:var(--tc);color:#fff}
   .notice{background:#FEF3C7;border:1px solid #FCD34D;color:#92400E;border-radius:8px;padding:10px 14px;font-size:13px;margin-top:16px;display:none}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
   .toast.show{opacity:1}
@@ -235,6 +239,22 @@ function togglePick(keys){
   render();
 }
 
+const isCrew = name => DATA.members.some(m => m.name===name && tagsOf(m).includes(CREW));
+async function toggleConfirm(date, type){
+  if(!me || !isCrew(me)){ toast('촬영일 확정은 촬영팀만 할 수 있어요'); return; }
+  const on = !DATA.confirmed.some(c => c.date===date && c.type===type);
+  if(on) DATA.confirmed.push({date, type, memo:''}); else DATA.confirmed = DATA.confirmed.filter(c => !(c.date===date && c.type===type));
+  render();
+  try{
+    const j = await postJSON({action:'confirm', name:me, date, type, on, status:'확정'});
+    if(!j.ok) throw new Error(j.error);
+    toast(on ? `${date.slice(5).replace('-','/')} ${type} 확정` : `${type} 확정 취소`);
+  }catch(e){
+    toast(String(e.message||'').includes('상태 값') ? '연결 코드를 새 버전으로 교체해야 확정할 수 있어요' : '확정 저장 실패 — 다시 시도해주세요', 3500);
+    load(true);
+  }
+}
+
 const tagsOf = m => String(m.group||'').split('/').map(x=>x.trim()).filter(Boolean);
 const homeOf = m => { const t = tagsOf(m); return t[t.length-1] || '기타'; };
 const CREW = '촬영팀'; // 촬영팀은 모든 콘텐츠 집계에 항상 포함
@@ -352,14 +372,17 @@ function renderDetail(){
       <div><b style="color:var(--ok)">가능 ${s['가능'].length}</b>${s['가능'].join(', ')||'-'}</div>
       <div><b style="color:var(--maybe)">미정 ${s['미정'].length}</b>${s['미정'].join(', ')||'-'}</div>
       <div><b style="color:var(--muted)">미응답 ${s['미응답'].length}</b>${s['미응답'].join(', ')||'-'}</div>
-    </div>`;
+    </div>
+    ${me && isCrew(me) ? `<div class="confirm"><div class="label" style="margin:0">촬영일 확정 <span style="font-weight:500">· 촬영팀 전용 · 다시 누르면 취소</span></div>
+      <div class="cbtns">${Object.entries(TYPE_COLORS).map(([k,c])=>`<button style="--tc:${c}" class="${DATA.confirmed.some(x=>x.date===selDate&&x.type===k)?'on':''}" data-confirm="${k}">${DATA.confirmed.some(x=>x.date===selDate&&x.type===k)?'✓ ':''}${k}</button>`).join('')}</div></div>` : ''}`;
 }
 
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-name],[data-group],[data-date],[data-set],[data-jump],[data-bulk],[data-clearpick],[data-mpick],[data-dow],#multiToggle,#closeDetail,#reload');
+  const t = e.target.closest('[data-name],[data-group],[data-date],[data-set],[data-jump],[data-bulk],[data-confirm],[data-clearpick],[data-mpick],[data-dow],#multiToggle,#closeDetail,#reload');
   if(!t) return;
   if(t.id==='reload'){ load(); return; }
   if(t.id==='multiToggle'){ multi=!multi; picked.clear(); selDate=null; render(); if(multi && !me) toast('먼저 내 이름을 골라주세요'); return; }
+  if(t.dataset.confirm){ toggleConfirm(selDate, t.dataset.confirm); return; }
   if(t.dataset.bulk!==undefined){ saveMany([...picked], t.dataset.bulk); return; }
   if(t.dataset.clearpick){ picked.clear(); render(); return; }
   if(t.dataset.mpick){ togglePick(futureDaysOfMonth(t.dataset.ym, t.dataset.mpick==='weekday' ? (w=>w>0&&w<6) : (()=>true))); return; }
