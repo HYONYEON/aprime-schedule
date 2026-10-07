@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>A-prime 촬영 일정 조율</title>
+<title>A-prime 콘텐츠 일정 조율</title>
 <style>
   :root{
     --navy:#0F172A; --navy2:#1E293B; --orange:#F59E0B; --orange-d:#D97706;
@@ -39,6 +39,7 @@
   .best{flex:1 1 340px}
   .best ol{margin:0;padding-left:18px;font-size:14px;line-height:1.8}
   .best .cnt{color:var(--ok);font-weight:700}
+  .best .all{background:var(--ok);color:#fff;border-radius:999px;padding:1px 8px;font-size:12px;font-weight:700}
   .best .cnt-m{color:var(--maybe);font-weight:700}
   .months{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px}
   @media(max-width:1100px){.months{grid-template-columns:1fr 1fr}}
@@ -83,7 +84,9 @@
   .cell.pick .d::after{content:' ✓';color:var(--orange-d)}
   .multi .dow div{cursor:pointer} .multi .dow div:hover{background:#FEF3C7}
   .month h2{display:flex;align-items:center;gap:6px}
-  .mpick{margin-left:auto;border:1px solid #475569;background:transparent;color:#E2E8F0;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer}
+  .mt{margin-left:auto;font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;background:#334155;color:#CBD5E1}
+  .mt.on{background:#7C3AED;color:#fff}
+  .mpick{margin-left:0;border:1px solid #475569;background:transparent;color:#E2E8F0;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer}
   .mpick+.mpick{margin-left:0}
   .mpick:hover{border-color:var(--orange);color:#fff}
   .confirm{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
@@ -102,7 +105,7 @@
 <body>
 <header>
   <div class="wrap hd">
-    <h1 id="title">A-prime 촬영 일정 조율<small id="range">불러오는 중...</small></h1>
+    <h1 id="title">A-prime 콘텐츠 일정 조율<small id="range">불러오는 중...</small></h1>
     <div><span id="updated" style="font-size:12px;color:#94A3B8;margin-right:8px"></span><button class="btn" id="reload">새로고침</button></div>
   </div>
 </header>
@@ -119,18 +122,18 @@
       <div class="label step">② 날짜를 누르고 상태를 고르세요</div>
       <span class="k ok">가능</span><span class="k maybe">미정</span><br>
       달력 칸의 막대는 <b>가능 · 미정</b> 인원 비율입니다.<br>
-      확정된 촬영일은 칸 안에 색 라벨로 표시됩니다.
+      확정된 일정은 칸 안에 색 라벨로 표시됩니다.
       <div id="modeBox"></div>
     </div>
     <div class="warn3">
-      <div class="label step" style="color:var(--no)">③ 촬영일 확정</div>
-      <div class="warnbox">⚠ 촬영일 확정 버튼은 <b>운영진 외에는 절대로 건드리시면 안 됩니다.</b></div>
+      <div class="label step" style="color:var(--no)">③ 일정 확정</div>
+      <div class="warnbox">⚠ 일정 확정 버튼은 <b>운영진 외에는 절대로 건드리시면 안 됩니다.</b></div>
     </div>
   </div>
 
   <div class="panel row">
     <div style="flex:1 1 300px">
-      <div class="label">집계 기준 <span style="font-weight:500">· 촬영팀은 모든 콘텐츠에 포함</span></div>
+      <div class="label">집계 기준 <span style="font-weight:500">· 촬영팀은 모든 콘텐츠에 포함 · 정기미팅은 필수 4명만 집계</span></div>
       <div class="filter" id="filter"></div>
     </div>
     <div class="best">
@@ -138,7 +141,7 @@
       <ol id="best"><li style="list-style:none;margin-left:-18px;color:var(--muted)">아직 응답이 없습니다</li></ol>
     </div>
     <div style="flex:1 1 260px">
-      <div class="label">확정 촬영 구분</div>
+      <div class="label">확정 일정 구분</div>
       <div id="types" style="display:flex;gap:6px;flex-wrap:wrap"></div>
     </div>
   </div>
@@ -157,8 +160,9 @@ const HOLIDAYS = {
   '2026-10-03':'개천절','2026-10-05':'대체공휴일','2026-10-09':'한글날','2026-12-25':'성탄절',
   '2027-01-01':'신정','2027-02-06':'설날','2027-02-07':'설날','2027-02-08':'설날','2027-02-09':'대체공휴일','2027-03-01':'삼일절'
 };
-const TYPE_COLORS = {'본편(팟캐스트)':'#0F172A','번외편 여자편':'#DB2777','번외편 남자편':'#2563EB'};
-const TYPE_ALIAS = {'본편':'본편(팟캐스트)','팟캐스트':'본편(팟캐스트)'};
+const TYPE_COLORS = {'본편(팟캐스트)':'#0F172A','번외편 여자편':'#DB2777','번외편 남자편':'#2563EB','정기미팅':'#7C3AED'};
+const MEETING = '정기미팅'; // 매월 1회, 필수 인원만 집계 (촬영팀 자동 포함 안 함)
+const TYPE_ALIAS = {'본편':'본편(팟캐스트)','팟캐스트':'본편(팟캐스트)','정기 미팅':'정기미팅'};
 const ST_CLS = {'가능':'ok','불가':'no','미정':'maybe'};
 const DOW = ['일','월','화','수','목','금','토'];
 
@@ -248,7 +252,7 @@ function togglePick(keys){
 
 const isCrew = name => DATA.members.some(m => m.name===name && tagsOf(m).includes(CREW));
 async function toggleConfirm(date, type){
-  if(!me || !isCrew(me)){ toast('촬영일 확정은 촬영팀만 할 수 있어요'); return; }
+  if(!me || !isCrew(me)){ toast('일정 확정은 촬영팀만 할 수 있어요'); return; }
   const on = !DATA.confirmed.some(c => c.date===date && c.type===type);
   if(on) DATA.confirmed.push({date, type, memo:''}); else DATA.confirmed = DATA.confirmed.filter(c => !(c.date===date && c.type===type));
   render();
@@ -265,7 +269,7 @@ async function toggleConfirm(date, type){
 const tagsOf = m => String(m.group||'').split('/').map(x=>x.trim()).filter(Boolean);
 const homeOf = m => { const t = tagsOf(m); return t[t.length-1] || '기타'; };
 const CREW = '촬영팀'; // 촬영팀은 모든 콘텐츠 집계에 항상 포함
-function membersIn(group){ return DATA.members.filter(m => group==='전체' || tagsOf(m).includes(group) || tagsOf(m).includes(CREW)); }
+function membersIn(group){ return DATA.members.filter(m => group==='전체' || tagsOf(m).includes(group) || (group!==MEETING && tagsOf(m).includes(CREW))); }
 
 function statsFor(date){
   const names = new Set(membersIn(groupFilter).map(m=>m.name));
@@ -279,7 +283,7 @@ function statsFor(date){
 
 function render(){
   const cfg = DATA.config || {};
-  const title = cfg.title || 'A-prime 촬영 일정 조율';
+  const title = cfg.title || 'A-prime 콘텐츠 일정 조율';
   document.title = title;
   const [sy, sm] = (cfg.startMonth || todayStr.slice(0,7)).split('-').map(Number);
   const months = cfg.months || 3;
@@ -288,10 +292,11 @@ function render(){
 
   // 멤버
   const groups = [...new Set(DATA.members.map(homeOf))];
-  const allTags = [...new Set(DATA.members.flatMap(tagsOf))].sort((x,y)=> (y==='팟캐스트')-(x==='팟캐스트'));
+  const ORDER = ['팟캐스트','번외편(여자)','번외편(남자)',MEETING];
+  const allTags = [...new Set(DATA.members.flatMap(tagsOf))].sort((x,y)=> ((ORDER.indexOf(x)+1)||99)-((ORDER.indexOf(y)+1)||99));
   if(me && !DATA.members.some(m=>m.name===me) && DATA.members.length) me = null;
   $('members').innerHTML = groups.map(g => `<div class="grp"><b>${g}</b>${
-    DATA.members.filter(m=>homeOf(m)===g).map(m=>`<button class="chip ${m.name===me?'on':''}" data-name="${m.name}">${m.name}${tagsOf(m).length>1?`<span class="tag">${tagsOf(m).slice(0,-1).join('·')}</span>`:''}</button>`).join('')
+    DATA.members.filter(m=>homeOf(m)===g).map(m=>`<button class="chip ${m.name===me?'on':''}" data-name="${m.name}">${m.name}${tagsOf(m).slice(0,-1).filter(t=>t!==MEETING).length?`<span class="tag">${tagsOf(m).slice(0,-1).filter(t=>t!==MEETING).join('·')}</span>`:''}${tagsOf(m).includes(MEETING)?`<span class="tag" style="color:#7C3AED">미팅</span>`:''}</button>`).join('')
   }</div>`).join('') || '<span class="c">멤버 불러오는 중...</span>';
 
   // 필터
@@ -314,7 +319,8 @@ function render(){
     const dt = new Date(sy, sm-1+i, 1), y=dt.getFullYear(), m=dt.getMonth()+1;
     const first = dt.getDay(), days = new Date(y, m, 0).getDate();
     const ymk = `${y}-${pad(m)}`;
-    html += `<section class="month"><h2>${y}년 ${m}월${multi?`<button class="mpick" data-mpick="weekday" data-ym="${ymk}">평일 전체</button><button class="mpick" data-mpick="all" data-ym="${ymk}">이 달 전체</button>`:''}</h2><div class="dow">${DOW.map((d,wi)=>`<div data-dow="${wi}" data-ym="${ymk}">${d}</div>`).join('')}</div><div class="grid">`;
+    const mt = DATA.confirmed.filter(c=>c.type===MEETING && c.date.startsWith(ymk)).map(c=>{const d=new Date(c.date+'T00:00:00');return `${m}/${d.getDate()}(${DOW[d.getDay()]})`;});
+    html += `<section class="month"><h2>${y}년 ${m}월<span class="mt ${mt.length?'on':''}">정기미팅 ${mt.length?mt.join(', '):'미정'}</span>${multi?`<button class="mpick" data-mpick="weekday" data-ym="${ymk}">평일 전체</button><button class="mpick" data-mpick="all" data-ym="${ymk}">이 달 전체</button>`:''}</h2><div class="dow">${DOW.map((d,wi)=>`<div data-dow="${wi}" data-ym="${ymk}">${d}</div>`).join('')}</div><div class="grid">`;
     for(let e=0;e<first;e++) html += `<div class="cell empty"></div>`;
     for(let d=1; d<=days; d++){
       const key = ymd(y,m,d), w = (first+d-1)%7; allDates.push(key);
@@ -337,7 +343,7 @@ function render(){
     .sort((a,b)=> b.s['가능'].length-a.s['가능'].length || b.s['미정'].length-a.s['미정'].length || a.k.localeCompare(b.k)).slice(0,5);
   $('best').innerHTML = ranked.length ? ranked.map(x=>{
     const dt=new Date(x.k+'T00:00:00');
-    return `<li><a href="#" data-jump="${x.k}" style="color:inherit">${dt.getMonth()+1}월 ${dt.getDate()}일 (${DOW[dt.getDay()]})</a> — <span class="cnt">가능 ${x.s['가능'].length}명</span> / ${x.s.total}명${x.s['미정'].length?` · <span class="cnt-m">미정 ${x.s['미정'].length}명</span>`:''}</li>`;
+    return `<li><a href="#" data-jump="${x.k}" style="color:inherit">${dt.getMonth()+1}월 ${dt.getDate()}일 (${DOW[dt.getDay()]})</a> — <span class="cnt">가능 ${x.s['가능'].length}명</span> / ${x.s.total}명${x.s['가능'].length===x.s.total?' <span class="all">✓ 전원 가능</span>':''}${x.s['미정'].length?` · <span class="cnt-m">미정 ${x.s['미정'].length}명</span>`:''}</li>`;
   }).join('') : '<li style="list-style:none;margin-left:-18px;color:var(--muted)">아직 응답이 없습니다</li>';
 
   renderDetail();
@@ -380,7 +386,7 @@ function renderDetail(){
       <div><b style="color:var(--maybe)">미정 ${s['미정'].length}</b>${s['미정'].join(', ')||'-'}</div>
       <div><b style="color:var(--muted)">미응답 ${s['미응답'].length}</b>${s['미응답'].join(', ')||'-'}</div>
     </div>
-    ${me && isCrew(me) ? `<div class="confirm"><div class="label" style="margin:0">촬영일 확정 <span style="font-weight:500">· 촬영팀 전용 · 다시 누르면 취소</span></div>
+    ${me && isCrew(me) ? `<div class="confirm"><div class="label" style="margin:0">일정 확정 <span style="font-weight:500">· 촬영팀 전용 · 다시 누르면 취소</span></div>
       <div class="cbtns">${Object.entries(TYPE_COLORS).map(([k,c])=>`<button style="--tc:${c}" class="${DATA.confirmed.some(x=>x.date===selDate&&x.type===k)?'on':''}" data-confirm="${k}">${DATA.confirmed.some(x=>x.date===selDate&&x.type===k)?'✓ ':''}${k}</button>`).join('')}</div></div>` : ''}`;
 }
 
