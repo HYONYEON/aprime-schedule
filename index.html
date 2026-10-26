@@ -160,9 +160,9 @@ const HOLIDAYS = {
   '2026-10-03':'개천절','2026-10-05':'대체공휴일','2026-10-09':'한글날','2026-12-25':'성탄절',
   '2027-01-01':'신정','2027-02-06':'설날','2027-02-07':'설날','2027-02-08':'설날','2027-02-09':'대체공휴일','2027-03-01':'삼일절'
 };
-const TYPE_COLORS = {'본편(팟캐스트)':'#0F172A','번외편 여자편':'#DB2777','번외편 남자편':'#2563EB','정기미팅':'#7C3AED'};
+const TYPE_COLORS = {'본편(팟캐스트)':'#0F172A','번외편':'#DB2777','정기미팅':'#7C3AED'};
 const MEETING = '정기미팅'; // 매월 1회, 필수 인원만 집계 (촬영팀 자동 포함 안 함)
-const TYPE_ALIAS = {'본편':'본편(팟캐스트)','팟캐스트':'본편(팟캐스트)','정기 미팅':'정기미팅'};
+const TYPE_ALIAS = {'본편':'본편(팟캐스트)','팟캐스트':'본편(팟캐스트)','정기 미팅':'정기미팅','번외편 여자편':'번외편','번외편 남자편':'번외편'};
 const ST_CLS = {'가능':'ok','불가':'no','미정':'maybe'};
 const DOW = ['일','월','화','수','목','금','토'];
 
@@ -184,7 +184,9 @@ async function load(silent){
     const r = await fetch(API, {cache:'no-store'});
     const j = await r.json();
     if(!j.ok) throw new Error(j.error||'error');
-    DATA = j; DATA.confirmed.forEach(c=>{ c.type = TYPE_ALIAS[c.type] || c.type; }); notice('');
+    DATA = j; DATA.confirmed.forEach(c=>{ c.type = TYPE_ALIAS[c.type] || c.type; });
+    const seen = new Set(); DATA.confirmed = DATA.confirmed.filter(c => { const k = c.date+'|'+c.type; if(seen.has(k)) return false; seen.add(k); return true; }); // 별칭 통합 후 중복 제거
+    notice('');
     const t=new Date(); $('updated').textContent = `업데이트 ${pad(t.getHours())}:${pad(t.getMinutes())}`;
   }catch(e){
     if(!silent) notice('데이터를 불러오지 못했습니다. 잠시 후 새로고침 해주세요. 계속되면 촬영팀에 알려주세요.');
@@ -266,9 +268,11 @@ async function toggleConfirm(date, type){
   }
 }
 
-const tagsOf = m => String(m.group||'').split('/').map(x=>x.trim()).filter(Boolean);
-const homeOf = m => { const t = tagsOf(m); return t[t.length-1] || '기타'; };
 const CREW = '촬영팀'; // 촬영팀은 모든 콘텐츠 집계에 항상 포함
+const CAST = '출연진';
+// 번외편(여자)·번외편(남자) 같은 옛 태그는 '번외편' 하나로 합침
+const tagsOf = m => [...new Set(String(m.group||'').split('/').map(x=>x.trim().replace(/^번외편\s*\(.*\)$/,'번외편')).filter(Boolean))];
+const homeOf = m => tagsOf(m).includes(CREW) ? CREW : CAST;
 function membersIn(group){ return DATA.members.filter(m => group==='전체' || tagsOf(m).includes(group) || (group!==MEETING && tagsOf(m).includes(CREW))); }
 
 function statsFor(date){
@@ -291,12 +295,12 @@ function render(){
   $('title').innerHTML = `${title}<small>${sy}년 ${sm}월 ~ ${endM.getFullYear()}년 ${endM.getMonth()+1}월 · 총 ${DATA.members.length}명</small>`;
 
   // 멤버
-  const groups = [...new Set(DATA.members.map(homeOf))];
-  const ORDER = ['팟캐스트','번외편(여자)','번외편(남자)',MEETING];
+  const groups = [CAST, CREW].filter(g => DATA.members.some(m => homeOf(m)===g));
+  const ORDER = ['팟캐스트','번외편',MEETING];
   const allTags = [...new Set(DATA.members.flatMap(tagsOf))].sort((x,y)=> ((ORDER.indexOf(x)+1)||99)-((ORDER.indexOf(y)+1)||99));
   if(me && !DATA.members.some(m=>m.name===me) && DATA.members.length) me = null;
   $('members').innerHTML = groups.map(g => `<div class="grp"><b>${g}</b>${
-    DATA.members.filter(m=>homeOf(m)===g).map(m=>`<button class="chip ${m.name===me?'on':''}" data-name="${m.name}">${m.name}${tagsOf(m).slice(0,-1).filter(t=>t!==MEETING).length?`<span class="tag">${tagsOf(m).slice(0,-1).filter(t=>t!==MEETING).join('·')}</span>`:''}${tagsOf(m).includes(MEETING)?`<span class="tag" style="color:#7C3AED">미팅</span>`:''}</button>`).join('')
+    DATA.members.filter(m=>homeOf(m)===g).map(m=>`<button class="chip ${m.name===me?'on':''}" data-name="${m.name}">${m.name}${tagsOf(m).filter(t=>t!==MEETING&&t!==CREW).length?`<span class="tag">${tagsOf(m).filter(t=>t!==MEETING&&t!==CREW).join('·')}</span>`:''}${tagsOf(m).includes(MEETING)?`<span class="tag" style="color:#7C3AED">미팅</span>`:''}</button>`).join('')
   }</div>`).join('') || '<span class="c">멤버 불러오는 중...</span>';
 
   // 필터
