@@ -41,6 +41,8 @@
   .best .cnt{color:var(--ok);font-weight:700}
   .best .all{background:var(--ok);color:#fff;border-radius:999px;padding:1px 8px;font-size:12px;font-weight:700}
   .best .cnt-m{color:var(--maybe);font-weight:700}
+  .best .bm+.bm{margin-top:6px}
+  .best .bm>b{font-size:13px}
   .months{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px}
   @media(max-width:1100px){.months{grid-template-columns:1fr 1fr}}
   @media(max-width:720px){.months{grid-template-columns:1fr}}
@@ -137,8 +139,8 @@
       <div class="filter" id="filter"></div>
     </div>
     <div class="best">
-      <div class="label">가능 인원이 가장 많은 날</div>
-      <ol id="best"><li style="list-style:none;margin-left:-18px;color:var(--muted)">아직 응답이 없습니다</li></ol>
+      <div class="label">가능 인원이 가장 많은 날 <span style="font-weight:500">· 다음 달부터 월별 TOP 3</span></div>
+      <div id="best"><div style="color:var(--muted);font-size:14px">아직 응답이 없습니다</div></div>
     </div>
     <div style="flex:1 1 260px">
       <div class="label">확정 일정 구분</div>
@@ -343,12 +345,20 @@ function render(){
   $('months').innerHTML = html;
 
   // 베스트 날짜
-  const ranked = allDates.filter(k=>k>=todayStr).map(k=>({k, s:statsFor(k)})).filter(x=>x.s['가능'].length>0)
-    .sort((a,b)=> b.s['가능'].length-a.s['가능'].length || b.s['미정'].length-a.s['미정'].length || a.k.localeCompare(b.k)).slice(0,5);
-  $('best').innerHTML = ranked.length ? ranked.map(x=>{
+  // 다음 달부터 월별 TOP 3 (이번 달은 추천에서 제외)
+  const nx = new Date(); nx.setDate(1); nx.setMonth(nx.getMonth()+1);
+  const nextYm = `${nx.getFullYear()}-${pad(nx.getMonth()+1)}`;
+  const byMonth = {};
+  allDates.filter(k=>k.slice(0,7)>=nextYm).map(k=>({k, s:statsFor(k)})).filter(x=>x.s['가능'].length>0)
+    .forEach(x => (byMonth[x.k.slice(0,7)] = byMonth[x.k.slice(0,7)]||[]).push(x));
+  const bestLi = x => {
     const dt=new Date(x.k+'T00:00:00');
     return `<li><a href="#" data-jump="${x.k}" style="color:inherit">${dt.getMonth()+1}월 ${dt.getDate()}일 (${DOW[dt.getDay()]})</a> — <span class="cnt">가능 ${x.s['가능'].length}명</span> / ${x.s.total}명${x.s['가능'].length===x.s.total?' <span class="all">✓ 전원 가능</span>':''}${x.s['미정'].length?` · <span class="cnt-m">미정 ${x.s['미정'].length}명</span>`:''}</li>`;
-  }).join('') : '<li style="list-style:none;margin-left:-18px;color:var(--muted)">아직 응답이 없습니다</li>';
+  };
+  const bestMonths = Object.keys(byMonth).sort();
+  $('best').innerHTML = bestMonths.length ? bestMonths.map(ym => `<div class="bm"><b>${+ym.slice(5)}월</b><ol>${
+    byMonth[ym].sort((a,b)=> b.s['가능'].length-a.s['가능'].length || b.s['미정'].length-a.s['미정'].length || a.k.localeCompare(b.k)).slice(0,3).map(bestLi).join('')
+  }</ol></div>`).join('') : '<div style="color:var(--muted);font-size:14px">아직 응답이 없습니다</div>';
 
   renderDetail();
 }
