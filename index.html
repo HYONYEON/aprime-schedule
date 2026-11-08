@@ -471,11 +471,11 @@ async function loadUploads(){
   catch(e){ $('uploads').innerHTML = '<div class="upempty">업로드 일정을 불러오지 못했습니다</div>'; return; }
   if(j.updated){ const d=new Date(j.updated+'T00:00:00'); $('upUpdated').textContent = `${d.getMonth()+1}/${d.getDate()} 기준`; }
   $('upNote').textContent = j.note || '';
-  const row = it => `<div class="up" style="--kc:${upKind(it.title)||'#94A3B8'}"><span>${esc(it.title)}</span><span class="st ${UP_ST[it.status]||''}">${esc(it.status)}</span></div>`;
+  const row = it => `<div class="up" style="--kc:${upKind(it.title)||'#94A3B8'}"><span>${esc(it.title)}</span>${it.status?`<span class="st ${UP_ST[it.status]||''}">${esc(it.status)}</span>`:''}</div>`;
   const items = (j.items||[]).filter(it => !it.date || it.date >= todayStr);
   const days = {}; items.filter(it=>it.date).forEach(it => (days[it.date] = days[it.date]||[]).push(it));
   const undated = items.filter(it=>!it.date);
-  let html = undated.length ? `<div class="upday"><h4>진행 중</h4>${undated.map(row).join('')}</div>` : '';
+  let html = undated.length ? `<div class="upday"><h4>${esc(j.undatedTitle || '진행 중')}</h4>${undated.map(row).join('')}</div>` : '';
   html += Object.keys(days).sort().map(k => {
     const d = new Date(k+'T00:00:00');
     return `<div class="upday ${k===todayStr?'today':''}"><h4>${d.getMonth()+1}/${d.getDate()} (${DOW[d.getDay()]})</h4>${days[k].map(row).join('')}</div>`;
