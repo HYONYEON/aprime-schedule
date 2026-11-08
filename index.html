@@ -64,6 +64,27 @@
   .st.s-work{background:#FFEDD5;color:#C2410C}
   .st.s-final{background:#EDE9FE;color:#6D28D9}
   .st.s-fb{background:#DBEAFE;color:#1D4ED8}
+  .side h2 .upedit{margin-left:8px;border:1px solid #475569;background:transparent;color:#E2E8F0;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:600;cursor:pointer}
+  .side h2 .upedit:hover{border-color:var(--orange);color:#fff}
+  .upeditor{overflow:auto;padding:12px 16px 16px;font-size:13px}
+  .upeditor .ef{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+  .upeditor .ef span{font-size:11px;font-weight:700;color:var(--muted)}
+  .upeditor input,.upeditor select{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:6px;padding:5px 7px;background:#fff;color:var(--navy);min-width:0}
+  .upeditor input:focus,.upeditor select:focus{outline:2px solid var(--orange);outline-offset:-1px}
+  .erow{display:grid;grid-template-columns:118px minmax(0,1fr) 24px;gap:4px 6px;padding:8px;border:1px solid var(--line);border-left:3px solid var(--kc,#94A3B8);border-radius:8px;margin:6px 0;background:#fff}
+  .erow.past{opacity:.5}
+  .erow [data-f=title]{grid-column:1 / 3}
+  .erow [data-f=status]{grid-column:2 / 3;grid-row:1}
+  .erow .edel{grid-column:3;grid-row:1 / 3;border:0;background:transparent;color:#94A3B8;font-size:18px;cursor:pointer;border-radius:6px}
+  .erow .edel:hover{background:var(--no-l);color:var(--no)}
+  .ebar{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+  .ebtn{border:1px solid var(--line);background:#fff;color:var(--navy);border-radius:8px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer}
+  .ebtn:hover{border-color:var(--orange)}
+  .ebtn.pri{background:var(--navy);border-color:var(--navy);color:#fff}
+  .ebtn:disabled{opacity:.5;cursor:default}
+  .ehelp{font-size:12px;color:var(--muted);line-height:1.6}
+  .ehelp ol{padding-left:18px;margin:6px 0}
+  .elink{border:0;background:none;color:var(--muted);font-size:11px;text-decoration:underline;cursor:pointer;padding:0;margin-top:8px}
   .upempty{padding:16px 0;font-size:13px;color:var(--muted)}
   .month{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
   .month h2{margin:0;padding:12px 14px;font-size:16px;background:var(--navy2);color:#fff}
@@ -193,9 +214,10 @@
 </div>
 
 <aside class="side">
-  <h2>콘텐츠 편집 및 업로드 일정<small id="upUpdated"></small></h2>
+  <h2>콘텐츠 편집 및 업로드 일정<small id="upUpdated"></small><button class="upedit" id="upEditBtn" hidden>편집</button></h2>
   <div class="note" id="upNote"></div>
   <div class="uplist" id="uploads"><div class="upempty">불러오는 중...</div></div>
+  <div class="upeditor" id="upEditor" hidden></div>
 </aside>
 </main>
 <footer>A-prime × Purple Universe · 이 페이지의 선택은 모든 출연진·촬영팀에게 공유됩니다</footer>
@@ -515,11 +537,29 @@ document.addEventListener('click', e => {
 const UP_ST = {'업로드 완료':'s-done','현재 작업중':'s-work','최종 수정 작업중':'s-final','피드백 및 디벨롭 중':'s-fb'};
 const upKind = t => /^번외편/.test(t) ? TYPE_COLORS['번외편'] : /^팟캐스트|^본편/.test(t) ? TYPE_COLORS['본편(팟캐스트)'] : '';
 const esc = s => String(s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+// 편집은 이 브라우저에 GitHub 토큰을 저장한 사람(운영자)만 가능 — 토큰이 없으면 편집 버튼 자체가 안 보임
+const GH_FILE = 'https://api.github.com/repos/HYONYEON/aprime-schedule/contents/uploads.json';
+const TOKEN_KEY = 'aprime_upload_token';
+const UP_STATUSES = ['업로드 예정','현재 작업중','최종 수정 작업중','피드백 및 디벨롭 중','업로드 완료'];
+let ghToken = null; try{ ghToken = localStorage.getItem(TOKEN_KEY); }catch(_){}
+const ADMIN_URL = new URLSearchParams(location.search).has('admin');
+let upData = null, upEditing = false;
+const ghHead = (raw) => ({Authorization:`Bearer ${ghToken}`, Accept: raw ? 'application/vnd.github.raw+json' : 'application/vnd.github+json'});
+$('upEditBtn').hidden = !(ghToken || ADMIN_URL);
+
 async function loadUploads(){
-  let j;
-  try{ j = await fetch('uploads.json', {cache:'no-store'}).then(r=>r.json()); }
-  catch(e){ $('uploads').innerHTML = '<div class="upempty">업로드 일정을 불러오지 못했습니다</div>'; return; }
-  if(j.updated){ const d=new Date(j.updated+'T00:00:00'); $('upUpdated').textContent = `${d.getMonth()+1}/${d.getDate()} 기준`; }
+  if(upEditing) return;              // 편집 중에는 자동 새로고침으로 덮어쓰지 않음
+  let j = null;
+  if(ghToken){ try{ const r = await fetch(`${GH_FILE}?ref=main&t=${Date.now()}`, {headers:ghHead(true), cache:'no-store'}); if(r.ok) j = await r.json(); }catch(_){} }
+  if(!j){
+    try{ j = await fetch('uploads.json', {cache:'no-store'}).then(r=>r.json()); }
+    catch(e){ $('uploads').innerHTML = '<div class="upempty">업로드 일정을 불러오지 못했습니다</div>'; return; }
+  }
+  if(upEditing) return;
+  upData = j; renderUploads(j);
+}
+function renderUploads(j){
+  $('upUpdated').textContent = j.updated ? (d => `${d.getMonth()+1}/${d.getDate()} 기준`)(new Date(j.updated+'T00:00:00')) : '';
   $('upNote').textContent = j.note || '';
   const row = it => `<div class="up" style="--kc:${upKind(it.title)||'#94A3B8'}"><span>${esc(it.title)}</span>${it.status?`<span class="st ${UP_ST[it.status]||''}">${esc(it.status)}</span>`:''}</div>`;
   const items = (j.items||[]).filter(it => !it.date || it.date >= todayStr);
@@ -532,6 +572,95 @@ async function loadUploads(){
   }).join('');
   $('uploads').innerHTML = html || '<div class="upempty">예정된 일정이 없습니다</div>';
 }
+
+function showEditor(on){
+  upEditing = on;
+  $('upEditor').hidden = !on; $('uploads').hidden = on; $('upNote').hidden = on;
+  $('upEditBtn').textContent = on ? '닫기' : '편집';
+  if(on) ghToken ? editorForm() : editorSetup();
+  else if(upData) renderUploads(upData);
+}
+function editorSetup(){
+  $('upEditor').innerHTML = `<div class="ehelp"><b>이 브라우저에 편집 권한 연결</b>
+    <ol><li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub 토큰 만들기</a> (Fine-grained)</li>
+    <li>Repository access → Only select → <b>aprime-schedule</b></li>
+    <li>Permissions → Contents → <b>Read and write</b> → 생성</li>
+    <li>만들어진 토큰을 아래에 붙여넣기</li></ol>
+    토큰은 이 브라우저에만 저장되고, 다른 사람 화면에는 편집 버튼이 보이지 않습니다.</div>
+    <div class="ef" style="margin-top:10px"><input type="password" id="tokIn" placeholder="github_pat_..." autocomplete="off"></div>
+    <div class="ebar"><button class="ebtn pri" id="tokSave">연결</button></div>`;
+}
+function rowHtml(it){
+  return `<div class="erow ${it.date && it.date < todayStr ? 'past' : ''}" style="--kc:${upKind(it.title)||'#94A3B8'}">
+    <input type="date" data-f="date" value="${esc(it.date)}">
+    <select data-f="status"><option value="">(상태 없음)</option>${UP_STATUSES.map(x=>`<option ${x===it.status?'selected':''}>${x}</option>`).join('')}</select>
+    <input type="text" data-f="title" value="${esc(it.title)}" placeholder="콘텐츠 이름 (예: 팟캐스트 EP.04_1부)">
+    <button class="edel" title="삭제">×</button></div>`;
+}
+function editorForm(){
+  const j = upData || {items:[]};
+  const pastN = (j.items||[]).filter(it => it.date && it.date < todayStr).length;
+  $('upEditor').innerHTML = `
+    <div class="ef"><span>안내 문구</span><input id="eNote" value="${esc(j.note)}"></div>
+    <div class="ef"><span>날짜 없는 항목 제목</span><input id="eUndated" value="${esc(j.undatedTitle)}" placeholder="진행 중"></div>
+    <div class="ehelp">날짜를 비우면 위 제목 아래에 묶여 보입니다. 저장하면 날짜순으로 정렬돼요.</div>
+    <div id="eRows">${(j.items||[]).map(rowHtml).join('')}</div>
+    <div class="ebar"><button class="ebtn" id="eAdd">+ 항목 추가</button>${pastN ? `<button class="ebtn" id="ePast">지난 항목 ${pastN}개 삭제</button>` : ''}</div>
+    <div class="ebar"><button class="ebtn pri" id="eSave">저장</button><button class="ebtn" id="eCancel">취소</button></div>
+    <button class="elink" id="eLogout">이 브라우저의 편집 권한 해제</button>`;
+}
+function collect(){
+  const items = [...document.querySelectorAll('#eRows .erow')].map(r => ({
+    date: r.querySelector('[data-f=date]').value, title: r.querySelector('[data-f=title]').value.trim(), status: r.querySelector('[data-f=status]').value
+  })).filter(it => it.title);
+  items.sort((a,b) => (a.date||'') < (b.date||'') ? -1 : (a.date||'') > (b.date||'') ? 1 : 0);   // 안정 정렬: 같은 날짜는 입력 순서 유지
+  return {updated: todayStr, note: $('eNote').value.trim(), undatedTitle: $('eUndated').value.trim() || '진행 중', items};
+}
+function toJson(o){
+  const q = JSON.stringify;
+  return `{\n  "updated": ${q(o.updated)},\n  "note": ${q(o.note)},\n  "undatedTitle": ${q(o.undatedTitle)},\n  "items": [\n`
+    + o.items.map(it => `    { "date": ${q(it.date)}, "title": ${q(it.title)}, "status": ${q(it.status)} }`).join(',\n') + `\n  ]\n}\n`;
+}
+function b64(text){ const by = new TextEncoder().encode(text); let s=''; for(const b of by) s += String.fromCharCode(b); return btoa(s); }
+async function ghSave(o){
+  for(let attempt=0; attempt<2; attempt++){
+    const cur = await fetch(`${GH_FILE}?ref=main&t=${Date.now()}`, {headers:ghHead(), cache:'no-store'});
+    if(cur.status===401 || cur.status===403) throw new Error('auth');
+    if(!cur.ok) throw new Error('get '+cur.status);
+    const {sha} = await cur.json();
+    const r = await fetch(GH_FILE, {method:'PUT', headers:{...ghHead(), 'Content-Type':'application/json'},
+      body: JSON.stringify({message:'업로드 일정 수정 (페이지 편집기)', content:b64(toJson(o)), sha, branch:'main'})});
+    if(r.ok) return;
+    if(r.status===401 || r.status===403) throw new Error('auth');
+    if(r.status!==409) throw new Error('put '+r.status);
+  }
+  throw new Error('conflict');
+}
+
+$('upEditBtn').addEventListener('click', () => showEditor(!upEditing));
+$('upEditor').addEventListener('input', e => { const r = e.target.closest('.erow'); if(r && e.target.dataset.f==='title') r.style.setProperty('--kc', upKind(e.target.value)||'#94A3B8'); });
+$('upEditor').addEventListener('click', async e => {
+  const t = e.target.closest('button'); if(!t) return;
+  if(t.id==='tokSave'){
+    const v = $('tokIn').value.trim(); if(!v){ toast('토큰을 붙여넣어 주세요'); return; }
+    t.disabled = true; ghToken = v;
+    const r = await fetch(`${GH_FILE}?ref=main`, {headers:ghHead(), cache:'no-store'}).catch(()=>null);
+    if(!r || !r.ok){ ghToken = null; t.disabled = false; toast('토큰을 확인할 수 없어요 — 저장소 권한을 확인해주세요', 3500); return; }
+    try{ localStorage.setItem(TOKEN_KEY, v); }catch(_){}
+    $('upEditBtn').hidden = false; toast('편집 권한이 연결됐어요'); upEditing = false; await loadUploads(); showEditor(true); return;
+  }
+  if(t.classList.contains('edel')){ t.closest('.erow').remove(); return; }
+  if(t.id==='eAdd'){ $('eRows').insertAdjacentHTML('beforeend', rowHtml({date:'', title:'', status:'업로드 예정'})); $('eRows').lastElementChild.querySelector('[data-f=title]').focus(); return; }
+  if(t.id==='ePast'){ document.querySelectorAll('#eRows .erow.past').forEach(r => r.remove()); t.remove(); return; }
+  if(t.id==='eCancel'){ showEditor(false); return; }
+  if(t.id==='eLogout'){ if(!confirm('이 브라우저에서 편집 권한을 해제할까요?')) return; try{ localStorage.removeItem(TOKEN_KEY); }catch(_){} ghToken = null; $('upEditBtn').hidden = !ADMIN_URL; showEditor(false); toast('편집 권한을 해제했어요'); return; }
+  if(t.id==='eSave'){
+    const o = collect(); t.disabled = true; t.textContent = '저장 중...';
+    try{ await ghSave(o); upData = o; showEditor(false); toast('저장됨 — 다른 사람 화면엔 1분 안에 반영돼요', 3000); }
+    catch(err){ t.disabled = false; t.textContent = '저장';
+      toast(err.message==='auth' ? '토큰 권한이 없거나 만료됐어요 — 권한 해제 후 다시 연결해주세요' : '저장 실패 — 다시 시도해주세요', 4000); }
+  }
+});
 
 load(); loadUploads(); loadCrew();
 setInterval(()=>{ load(true); loadUploads(); loadCrew(); }, 60000);
