@@ -331,6 +331,7 @@ function membersIn(group){ return DATA.members.filter(m => group===MEETING ? tag
 // 촬영팀 공동 스케줄 (읽기만) — 날짜별 'all'(전원 가능) / 'three'(구주인 대표님만 빠짐)
 const CREW_API = 'https://script.google.com/macros/s/AKfycby9RtOG8-DjcHCflsS_PCmrPypcbPBEO4qD5LVtk0ZOWzwWCehpOtASAEFZ8B1kmGjy/exec';
 const CREW_OPTIONAL = '구주인';
+const CREW_VIEW = new URLSearchParams(location.search).has('crew');
 const CREW_LABEL = {all:'촬영팀(전부)', three:'촬영팀(3/4)'};
 let crewDays = {};
 async function loadCrew(){
@@ -374,7 +375,8 @@ function render(){
   $('title').innerHTML = `${title}<small>${sy}년 ${sm}월 ~ ${endM.getFullYear()}년 ${endM.getMonth()+1}월 · 총 ${DATA.members.length}명</small>`;
 
   // 멤버
-  const groups = [CAST, CREW].filter(g => DATA.members.some(m => homeOf(m)===g));
+  // 촬영팀 이름 줄은 촬영팀 전용 주소(?crew)로 열 때만 표시 — 일정 확정용
+  const groups = [CAST, ...(CREW_VIEW ? [CREW] : [])].filter(g => DATA.members.some(m => homeOf(m)===g));
   const ORDER = ['팟캐스트','번외편',MEETING];
   const allTags = [...new Set(DATA.members.flatMap(tagsOf))].sort((x,y)=> ((ORDER.indexOf(x)+1)||99)-((ORDER.indexOf(y)+1)||99));
   if(me && !DATA.members.some(m=>m.name===me) && DATA.members.length) me = null;
