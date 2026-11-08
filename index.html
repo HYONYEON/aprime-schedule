@@ -75,6 +75,7 @@
   .cell:hover{background:#FFFBEB}
   .cell.empty{background:#FAFAFA;cursor:default}
   .cell.sel{outline:2px solid var(--orange);outline-offset:-2px;z-index:1}
+  .cell.confd{box-shadow:inset 0 0 0 2px var(--no);border-radius:8px;background:#FFF5F5} /* 일정 확정된 날 — ③ 경고 박스와 같은 빨간 테두리 */
   .cell.past{opacity:.45}
   .d{font-size:13px;font-weight:700}
   .cell.sun .d,.cell.hol .d{color:var(--no)} .cell.sat .d{color:#2563EB}
@@ -115,6 +116,9 @@
   .confirm .cbtns button{border:2px solid var(--tc);background:#fff;color:var(--tc);border-radius:8px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer}
   .confirm .cbtns button.on{background:var(--tc);color:#fff}
   .warn3{flex:1 1 260px}
+  /* ②·③ 패널과 집계·TOP 3 패널의 오른쪽 열 시작선을 맞춤 */
+  .cols2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+  @media(max-width:720px){.cols2{grid-template-columns:minmax(0,1fr)}}
   .warnbox{background:var(--no-l);border:2px solid var(--no);color:#991B1B;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.6}
   .warnbox b{color:var(--no)}
   .notice{background:#FEF3C7;border:1px solid #FCD34D;color:#92400E;border-radius:8px;padding:10px 14px;font-size:13px;margin-top:16px;display:none}
@@ -140,7 +144,7 @@
     <div class="groups" id="members"></div>
   </div>
 
-  <div class="panel row">
+  <div class="panel cols2">
     <div class="guide">
       <div class="label step">② 날짜를 누르고 상태를 고르세요</div>
       <span class="k ok">가능</span><span class="k maybe">미정</span><br>
@@ -154,7 +158,7 @@
     </div>
   </div>
 
-  <div class="panel row">
+  <div class="panel cols2">
     <div style="flex:1 1 300px;display:flex;flex-direction:column;gap:16px">
       <div>
         <div class="label">집계 기준 <span style="font-weight:500">· 촬영팀은 모든 콘텐츠에 포함 · 정기미팅은 필수 4명만 집계</span></div>
@@ -366,7 +370,7 @@ function render(){
     for(let d=1; d<=days; d++){
       const key = ymd(y,m,d), w = (first+d-1)%7; allDates.push(key);
       const s = statsFor(key), tot = s.total||1;
-      const cls = ['cell', w===0?'sun':'', w===6?'sat':'', HOLIDAYS[key]?'hol':'', key<todayStr?'past':'', (!multi && key===selDate)?'sel':'', (multi && picked.has(key))?'pick':''].join(' ');
+      const cls = ['cell', w===0?'sun':'', w===6?'sat':'', HOLIDAYS[key]?'hol':'', conf[key]?'confd':'', key<todayStr?'past':'', (!multi && key===selDate)?'sel':'', (multi && picked.has(key))?'pick':''].join(' ');
       const mine = mineMap[key] ? `<span class="mine ${ST_CLS[mineMap[key]]}">${mineMap[key]}</span>` : '';
       const confs = (conf[key]||[]).map(c=>`<span class="conf" style="background:${TYPE_COLORS[c.type]||'#475569'}" title="${c.memo||''}">${c.type}</span>`).join('');
       html += `<div class="${cls}" data-date="${key}">
