@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>A-prime 콘텐츠 일정 조율</title>
+<title>A-prime 촬영 일정</title>
 <style>
   :root{
     --navy:#0F172A; --navy2:#1E293B; --orange:#F59E0B; --orange-d:#D97706;
@@ -135,7 +135,7 @@
 <body>
 <header>
   <div class="wrap hd">
-    <h1 id="title">A-prime 콘텐츠 일정 조율<small id="range">불러오는 중...</small></h1>
+    <h1 id="title">A-prime 촬영 일정<small id="range">불러오는 중...</small></h1>
     <div><span id="updated" style="font-size:12px;color:#94A3B8;margin-right:8px"></span><button class="btn" id="reload">새로고침</button></div>
   </div>
 </header>
@@ -365,7 +365,7 @@ function statsFor(date){
 
 function render(){
   const cfg = DATA.config || {};
-  const title = cfg.title || 'A-prime 콘텐츠 일정 조율';
+  const title = cfg.title || 'A-prime 촬영 일정';
   document.title = title;
   // 지난 달은 숨김: 시트의 시작 월이 이번 달보다 앞이면 이번 달부터 표시
   const startYm = [cfg.startMonth || '', todayStr.slice(0,7)].sort().pop();
