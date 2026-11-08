@@ -13,7 +13,9 @@
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;background:var(--bg);color:var(--navy);-webkit-font-smoothing:antialiased}
   header{background:var(--navy);color:#fff;border-bottom:3px solid var(--orange)}
-  .wrap{max-width:1280px;margin:0 auto;padding:0 20px}
+  .wrap{max-width:1440px;margin:0 auto;padding:0 20px}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:start}
+  @media(max-width:1100px){.layout{grid-template-columns:minmax(0,1fr)}}
   .hd{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 0;flex-wrap:wrap}
   .hd h1{margin:0;font-size:22px;letter-spacing:-.3px}
   .hd h1 small{display:block;font-size:12px;font-weight:500;color:#94A3B8;margin-top:4px;letter-spacing:0}
@@ -43,9 +45,26 @@
   .best .cnt-m{color:var(--maybe);font-weight:700}
   .best .bm+.bm{margin-top:6px}
   .best .bm>b{font-size:13px}
-  .months{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px}
-  @media(max-width:1100px){.months{grid-template-columns:1fr 1fr}}
-  @media(max-width:720px){.months{grid-template-columns:1fr}}
+  .months{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
+  @media(max-width:720px){.months{grid-template-columns:minmax(0,1fr)}}
+  /* 콘텐츠 편집 및 업로드 일정 (uploads.json, 읽기 전용) */
+  .side{position:sticky;top:16px;margin-top:16px;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 32px)}
+  @media(max-width:1100px){.side{position:static;max-height:none}}
+  .side h2{margin:0;padding:12px 16px;font-size:16px;background:var(--navy2);color:#fff;display:flex;align-items:baseline;gap:8px}
+  .side h2 small{margin-left:auto;font-size:11px;font-weight:500;color:#94A3B8}
+  .side .note{padding:10px 16px 0;font-size:12px;color:var(--muted)}
+  .uplist{overflow:auto;padding:4px 16px 16px}
+  .upday h4{margin:14px 0 4px;font-size:13px;color:var(--navy);display:flex;align-items:center;gap:6px}
+  .upday.today h4{color:var(--orange-d)}
+  .upday.today h4::after{content:'오늘';font-size:10px;background:var(--orange);color:#fff;border-radius:999px;padding:1px 7px}
+  .up{display:flex;align-items:center;gap:8px;padding:6px 0 6px 10px;border-left:3px solid var(--kc,#94A3B8);margin:4px 0;font-size:13px;line-height:1.4}
+  .up span:first-child{flex:1;min-width:0}
+  .up .st{flex:none;font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px;white-space:nowrap;background:#F1F5F9;color:#475569}
+  .st.s-done{background:var(--ok-l);color:var(--ok)}
+  .st.s-work{background:#FFEDD5;color:#C2410C}
+  .st.s-final{background:#EDE9FE;color:#6D28D9}
+  .st.s-fb{background:#DBEAFE;color:#1D4ED8}
+  .upempty{padding:16px 0;font-size:13px;color:var(--muted)}
   .month{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
   .month h2{margin:0;padding:12px 14px;font-size:16px;background:var(--navy2);color:#fff}
   .dow,.grid{display:grid;grid-template-columns:repeat(7,1fr)}
@@ -112,14 +131,16 @@
   </div>
 </header>
 
-<main class="wrap">
+<main class="wrap layout">
+<div>
   <div class="notice" id="notice"></div>
 
+  <div class="panel">
+    <div class="label step">① 내 이름을 먼저 고르세요</div>
+    <div class="groups" id="members"></div>
+  </div>
+
   <div class="panel row">
-    <div class="who">
-      <div class="label step">① 내 이름을 먼저 고르세요</div>
-      <div class="groups" id="members"></div>
-    </div>
     <div class="guide">
       <div class="label step">② 날짜를 누르고 상태를 고르세요</div>
       <span class="k ok">가능</span><span class="k maybe">미정</span><br>
@@ -134,23 +155,32 @@
   </div>
 
   <div class="panel row">
-    <div style="flex:1 1 300px">
-      <div class="label">집계 기준 <span style="font-weight:500">· 촬영팀은 모든 콘텐츠에 포함 · 정기미팅은 필수 4명만 집계</span></div>
-      <div class="filter" id="filter"></div>
+    <div style="flex:1 1 300px;display:flex;flex-direction:column;gap:16px">
+      <div>
+        <div class="label">집계 기준 <span style="font-weight:500">· 촬영팀은 모든 콘텐츠에 포함 · 정기미팅은 필수 4명만 집계</span></div>
+        <div class="filter" id="filter"></div>
+      </div>
+      <div>
+        <div class="label">확정 일정 구분</div>
+        <div id="types" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      </div>
     </div>
     <div class="best">
       <div class="label">가능 인원이 가장 많은 날 <span style="font-weight:500">· 다음 달부터 월별 TOP 3</span></div>
       <div id="best"><div style="color:var(--muted);font-size:14px">아직 응답이 없습니다</div></div>
-    </div>
-    <div style="flex:1 1 260px">
-      <div class="label">확정 일정 구분</div>
-      <div id="types" style="display:flex;gap:6px;flex-wrap:wrap"></div>
     </div>
   </div>
 
   <div class="months" id="months"></div>
 
   <div class="detail" id="detail" style="display:none"></div>
+</div>
+
+<aside class="side">
+  <h2>콘텐츠 편집 및 업로드 일정<small id="upUpdated"></small></h2>
+  <div class="note" id="upNote"></div>
+  <div class="uplist" id="uploads"><div class="upempty">불러오는 중...</div></div>
+</aside>
 </main>
 <footer>A-prime × Purple Universe · 이 페이지의 선택은 모든 출연진·촬영팀에게 공유됩니다</footer>
 <div class="toast" id="toast"></div>
@@ -160,7 +190,10 @@ const API = 'https://script.google.com/macros/s/AKfycbwlpUoYdEqXXC9el-eQ_TM4ANRe
 
 const HOLIDAYS = {
   '2026-10-03':'개천절','2026-10-05':'대체공휴일','2026-10-09':'한글날','2026-12-25':'성탄절',
-  '2027-01-01':'신정','2027-02-06':'설날','2027-02-07':'설날','2027-02-08':'설날','2027-02-09':'대체공휴일','2027-03-01':'삼일절','2027-03-03':'대통령선거'
+  '2027-01-01':'신정','2027-02-06':'설날','2027-02-07':'설날','2027-02-08':'설날','2027-02-09':'대체공휴일','2027-03-01':'삼일절','2027-03-03':'대통령선거',
+  '2027-05-05':'어린이날','2027-05-13':'부처님오신날','2027-06-06':'현충일','2027-08-15':'광복절','2027-08-16':'대체공휴일',
+  '2027-09-14':'추석','2027-09-15':'추석','2027-09-16':'추석','2027-10-03':'개천절','2027-10-04':'대체공휴일',
+  '2027-10-09':'한글날','2027-10-11':'대체공휴일','2027-12-25':'성탄절','2027-12-27':'대체공휴일'
 };
 const TYPE_COLORS = {'본편(팟캐스트)':'#0F172A','번외편':'#DB2777','정기미팅':'#7C3AED'};
 const MEETING = '정기미팅'; // 매월 1회, 필수 인원만 집계 (촬영팀 자동 포함 안 함)
@@ -291,8 +324,10 @@ function render(){
   const cfg = DATA.config || {};
   const title = cfg.title || 'A-prime 콘텐츠 일정 조율';
   document.title = title;
-  const [sy, sm] = (cfg.startMonth || todayStr.slice(0,7)).split('-').map(Number);
-  const months = cfg.months || 3;
+  // 지난 달은 숨김: 시트의 시작 월이 이번 달보다 앞이면 이번 달부터 표시
+  const startYm = [cfg.startMonth || '', todayStr.slice(0,7)].sort().pop();
+  const [sy, sm] = startYm.split('-').map(Number);
+  const months = cfg.months || 4;
   const endM = new Date(sy, sm-1+months-1, 1);
   $('title').innerHTML = `${title}<small>${sy}년 ${sm}월 ~ ${endM.getFullYear()}년 ${endM.getMonth()+1}월 · 총 ${DATA.members.length}명</small>`;
 
@@ -407,7 +442,7 @@ function renderDetail(){
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-name],[data-group],[data-date],[data-set],[data-jump],[data-bulk],[data-confirm],[data-clearpick],[data-mpick],[data-dow],#multiToggle,#closeDetail,#reload');
   if(!t) return;
-  if(t.id==='reload'){ load(); return; }
+  if(t.id==='reload'){ load(); loadUploads(); return; }
   if(t.id==='multiToggle'){ multi=!multi; picked.clear(); selDate=null; render(); if(multi && !me) toast('먼저 내 이름을 골라주세요'); return; }
   if(t.dataset.confirm){ toggleConfirm(selDate, t.dataset.confirm); return; }
   if(t.dataset.bulk!==undefined){ saveMany([...picked], t.dataset.bulk); return; }
@@ -426,8 +461,30 @@ document.addEventListener('click', e => {
   }
 });
 
-load();
-setInterval(()=>load(true), 60000);
+// 콘텐츠 편집 및 업로드 일정 — 저장소의 uploads.json (운영자만 수정, 페이지에서는 읽기만)
+const UP_ST = {'업로드 완료':'s-done','현재 작업중':'s-work','최종 수정 작업중':'s-final','피드백 및 디벨롭 중':'s-fb'};
+const upKind = t => /^번외편/.test(t) ? TYPE_COLORS['번외편'] : /^팟캐스트|^본편/.test(t) ? TYPE_COLORS['본편(팟캐스트)'] : '';
+const esc = s => String(s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+async function loadUploads(){
+  let j;
+  try{ j = await fetch('uploads.json', {cache:'no-store'}).then(r=>r.json()); }
+  catch(e){ $('uploads').innerHTML = '<div class="upempty">업로드 일정을 불러오지 못했습니다</div>'; return; }
+  if(j.updated){ const d=new Date(j.updated+'T00:00:00'); $('upUpdated').textContent = `${d.getMonth()+1}/${d.getDate()} 기준`; }
+  $('upNote').textContent = j.note || '';
+  const row = it => `<div class="up" style="--kc:${upKind(it.title)||'#94A3B8'}"><span>${esc(it.title)}</span><span class="st ${UP_ST[it.status]||''}">${esc(it.status)}</span></div>`;
+  const items = (j.items||[]).filter(it => !it.date || it.date >= todayStr);
+  const days = {}; items.filter(it=>it.date).forEach(it => (days[it.date] = days[it.date]||[]).push(it));
+  const undated = items.filter(it=>!it.date);
+  let html = undated.length ? `<div class="upday"><h4>진행 중</h4>${undated.map(row).join('')}</div>` : '';
+  html += Object.keys(days).sort().map(k => {
+    const d = new Date(k+'T00:00:00');
+    return `<div class="upday ${k===todayStr?'today':''}"><h4>${d.getMonth()+1}/${d.getDate()} (${DOW[d.getDay()]})</h4>${days[k].map(row).join('')}</div>`;
+  }).join('');
+  $('uploads').innerHTML = html || '<div class="upempty">예정된 일정이 없습니다</div>';
+}
+
+load(); loadUploads();
+setInterval(()=>{ load(true); loadUploads(); }, 60000);
 </script>
 </body>
 </html>
