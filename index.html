@@ -66,6 +66,10 @@
   .st.s-fb{background:#DBEAFE;color:#1D4ED8}
   .side h2 .upedit{margin-left:8px;border:1px solid #475569;background:transparent;color:#E2E8F0;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:600;cursor:pointer}
   .side h2 .upedit:hover{border-color:var(--orange);color:#fff}
+  .side h2 .upedit.save{background:var(--orange);border-color:var(--orange);color:#fff}
+  .side h2 .upedit.save:hover{background:var(--orange-d);border-color:var(--orange-d)}
+  .side h2 .upedit:disabled{opacity:.6;cursor:default}
+  .side h2 .upedit + .upedit{margin-left:6px}
   .upeditor{overflow:auto;padding:12px 16px 16px;font-size:13px}
   .upeditor .ef{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
   .upeditor .ef span{font-size:11px;font-weight:700;color:var(--muted)}
@@ -214,7 +218,7 @@
 </div>
 
 <aside class="side">
-  <h2>콘텐츠 편집 및 업로드 일정<small id="upUpdated"></small><button class="upedit" id="upEditBtn" hidden>편집</button></h2>
+  <h2>콘텐츠 편집 및 업로드 일정<small id="upUpdated"></small><button class="upedit save" id="upSaveTop" hidden>저장</button><button class="upedit" id="upEditBtn" hidden>편집</button></h2>
   <div class="note" id="upNote"></div>
   <div class="uplist" id="uploads"><div class="upempty">불러오는 중...</div></div>
   <div class="upeditor" id="upEditor" hidden></div>
@@ -577,6 +581,7 @@ function showEditor(on){
   upEditing = on;
   $('upEditor').hidden = !on; $('uploads').hidden = on; $('upNote').hidden = on;
   $('upEditBtn').textContent = on ? '닫기' : '편집';
+  $('upSaveTop').hidden = !(on && ghToken);
   if(on) ghToken ? editorForm() : editorSetup();
   else if(upData) renderUploads(upData);
 }
@@ -638,6 +643,7 @@ async function ghSave(o){
 }
 
 $('upEditBtn').addEventListener('click', () => showEditor(!upEditing));
+$('upSaveTop').addEventListener('click', () => $('eSave')?.click());   // 위쪽 저장 = 아래 저장과 동일
 $('upEditor').addEventListener('input', e => { const r = e.target.closest('.erow'); if(r && e.target.dataset.f==='title') r.style.setProperty('--kc', upKind(e.target.value)||'#94A3B8'); });
 $('upEditor').addEventListener('click', async e => {
   const t = e.target.closest('button'); if(!t) return;
@@ -655,10 +661,11 @@ $('upEditor').addEventListener('click', async e => {
   if(t.id==='eCancel'){ showEditor(false); return; }
   if(t.id==='eLogout'){ if(!confirm('이 브라우저에서 편집 권한을 해제할까요?')) return; try{ localStorage.removeItem(TOKEN_KEY); }catch(_){} ghToken = null; $('upEditBtn').hidden = !ADMIN_URL; showEditor(false); toast('편집 권한을 해제했어요'); return; }
   if(t.id==='eSave'){
-    const o = collect(); t.disabled = true; t.textContent = '저장 중...';
+    const o = collect(); t.disabled = true; t.textContent = '저장 중...'; $('upSaveTop').disabled = true; $('upSaveTop').textContent = '저장 중...';
     try{ await ghSave(o); upData = o; showEditor(false); toast('저장됨 — 다른 사람 화면엔 1분 안에 반영돼요', 3000); }
     catch(err){ t.disabled = false; t.textContent = '저장';
       toast(err.message==='auth' ? '토큰 권한이 없거나 만료됐어요 — 권한 해제 후 다시 연결해주세요' : '저장 실패 — 다시 시도해주세요', 4000); }
+    finally{ $('upSaveTop').disabled = false; $('upSaveTop').textContent = '저장'; }
   }
 });
 
