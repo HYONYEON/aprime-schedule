@@ -650,7 +650,7 @@ $('upEditor').addEventListener('click', async e => {
     $('upEditBtn').hidden = false; toast('편집 권한이 연결됐어요'); upEditing = false; await loadUploads(); showEditor(true); return;
   }
   if(t.classList.contains('edel')){ t.closest('.erow').remove(); return; }
-  if(t.id==='eAdd'){ $('eRows').insertAdjacentHTML('beforeend', rowHtml({date:'', title:'', status:'업로드 예정'})); $('eRows').lastElementChild.querySelector('[data-f=title]').focus(); return; }
+  if(t.id==='eAdd'){ $('eRows').insertAdjacentHTML('beforeend', rowHtml({date:todayStr, title:'', status:'업로드 예정'})); $('eRows').lastElementChild.querySelector('[data-f=title]').focus(); return; }
   if(t.id==='ePast'){ document.querySelectorAll('#eRows .erow.past').forEach(r => r.remove()); t.remove(); return; }
   if(t.id==='eCancel'){ showEditor(false); return; }
   if(t.id==='eLogout'){ if(!confirm('이 브라우저에서 편집 권한을 해제할까요?')) return; try{ localStorage.removeItem(TOKEN_KEY); }catch(_){} ghToken = null; $('upEditBtn').hidden = !ADMIN_URL; showEditor(false); toast('편집 권한을 해제했어요'); return; }
